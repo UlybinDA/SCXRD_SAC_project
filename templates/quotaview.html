@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% load static %}
+
+<head>
+    <link rel="stylesheet" href="{% static 'css/listquota.css' %}">
+</head>
+
+
+<div class="container-fluid my-4">
+    <h1 class="mb-4">Заявки по группам квот</h1>
+        <button type="button" class="btn-sm btn-warning" data-bs-toggle="modal"
+                data-bs-target="#confirmModal"
+                title="Обновить время квот">
+            Обновить время квот
+        </button>
+        <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Подтверждение действия</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Вы уверены, что хотите пометить обновить время для групп квот?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-sm btn-secondary" data-bs-dismiss="modal">Отмена
+                        </button>
+                        <form method="post"
+                              action="{% url 'quota_man_request' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-sm btn-danger w-10">
+                                <i class="fas fa-exclamation-circle me-2"></i>Да, подтверждаю
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    <div id="quota-groups"></div>
+</div>
+
+<script>
+const userOperatorProfileId = {{ user.operator_profile.id|default:"null" }};
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('quota-groups');
+    const quotaData = JSON.parse('{{ quota_data_json|escapejs }}');
+    const sortedQuotas = Object.keys(quotaData).sort();
+
+    for (const quotaName of sortedQuotas) {
+        const applications = quotaData[quotaName].apps;
+
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'quota-group mb-5 p-1 border rounded';
+        const timeLeft = quotaData[quotaName].time_left;
+        const timePeriod = quotaData[quotaName].time_period;
+
+        let time_left_class = '';
+        if (timeLeft <= 0) {
+            time_left_class = 'no_time';
+        } else {
+            time_left_class = 'has_time';
+        }
+
+        groupDiv.innerHTML = `
+
+
+                <div class="container-fluid">
+                    <h2 class="mb-0 me-2 quota-name ${time_left_class}">${quotaName} ${timeLeft}/${timePeriod} ч.</h2>
+                    <span class="badge bg-primary">${applications.length}</span>
+                </div>
+                <div class="d-flex align-items-start mb-3 flex-wrap">
+
+                <div class="applications-scroller position-relative flex-grow-1">
+                    <div class="applications-container d-flex flex-nowrap overflow-hidden py-2"
+                         id="container-${quotaName.replace(/\s+/g, '-')}">
+                    </div>
+                    <button class="scroll-btn left-btn btn-sm btn-primary shadow d-none" aria-label="Назад">
+                        &lt;
+                    </button>
+                    <button class="scroll-btn right-btn btn-sm btn-primary shadow" aria-label="Вперед">
+                        &gt;
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(groupDiv);
+
+        const appsContainer = groupDiv.querySelector('.applications-container');
+        const rightBtn = groupDiv.querySelector('.right-btn');
+        const leftBtn = groupDiv.querySelector('.left-btn');
+
+        applications.forEach(app => {
+            const card = document.createElement('div');
+            card.className = 'application-card flex-shrink-0 me-3 position-relative';
+            card.style.width = '180px';
+            card.dataset.appId = app.id;
+
+            let dateClass = '';
+            if (app.days_left === -1) dateClass = 'text-danger';
+            else if (app.days_left < 7) dateClass = 'text-danger';
+
+            card.innerHTML = `
+                <div class="card h-100 ${app.app_affiliation}">
+                    <div class="card-body p-3 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h6 class="card-title text-truncate mb-1" title="${app.sample_code}">${app.sample_code}</h6>
+                            ${app.asap_priority ?
+                                '<span class="badge bg-danger ms-1">ASAP</span>' :
+                                '<span class="badge bg-transparent" style="width: 26px"></span>'}
+                        </div>
+<!--                        <p class="card-text mb-2 small text-truncate" title="${app.lab}">${app.lab}</p>-->
+                        <p class="card-text mb-2 small text-truncate" title="${app.client}">${app.client}</p>
+                        <p class="card-text mb-0 small ${dateClass}">
+                            ${app.date}
+                        </p>
+                    </div>
+                </div>
+                <div class="priority-indicator"
+                     style="background-color: ${getPriorityColor(app.priority)}">
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                window.location.href = `${app.process_url}`;
+            });
+
+            appsContainer.appendChild(card);
+        });
+
+        initScrollButtons(appsContainer, leftBtn, rightBtn);
+    }
+
+    function initScrollButtons(container, leftBtn, rightBtn) {
+        const updateButtons = () => {
+            leftBtn.classList.toggle('d-none', container.scrollLeft === 0);
+            const maxScroll = container.scrollWidth - container.clientWidth;
+            rightBtn.classList.toggle('d-none', container.scrollLeft >= maxScroll);
+        };
+
+        container.addEventListener('scroll', updateButtons);
+        leftBtn.addEventListener('click', () => {
+            container.scrollBy({ left: -300, behavior: 'smooth' });
+        });
+        rightBtn.addEventListener('click', () => {
+            container.scrollBy({ left: 300, behavior: 'smooth' });
+        });
+
+
+        updateButtons();
+        new ResizeObserver(updateButtons).observe(container);
+    }
+
+    function getPriorityColor(priority) {
+        if (priority >= 80) return '#dc3545';
+        if (priority >= 50) return '#ffc107';
+        return '#20c997';
+    }
+});
+</script>
+
+<style>
+.quota-group {
+    background-color: #f8f9fa;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.2s;
+}
+
+.no_time {
+    color: red;
+}
+
+.my_app {
+    background-color: #e6ffeb;
+}
+
+.shared_app {
+    background-color: #ffffff;
+}
+
+.not_my_app {
+    background-color: #fffce5;
+}
+
+.has_time {
+    color: black;
+}
+
+.quota-group:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.applications-scroller {
+    position: relative;
+}
+
+.applications-container {
+    scrollbar-width: thin;
+    scrollbar-color: #ddd transparent;
+    padding-bottom: 10px;
+}
+
+.applications-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.applications-container::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 3px;
+}
+
+.application-card {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.application-card:hover {
+    transform: translateY(-3px);
+}
+
+.application-card .card {
+    border-left: none;
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.priority-indicator {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 0.25rem 0 0 0.25rem;
+}
+
+.scroll-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.left-btn {
+    left: -16px;
+}
+
+.right-btn {
+    right: -16px;
+}
+</style>
+
+{% endblock %}

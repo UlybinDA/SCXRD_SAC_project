@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %}
+{% load simple_tags_qt %}
+
+{% block content %}
+<script src="{% static 'js/plotly-3.1.0.min.js' %}"></script>
+
+<div class="container my-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-10 col-md-12">
+      <div class="card shadow-lg border-0">
+        <div class="card-body">
+          <h4 class="card-title text-center mb-4">Статистика текущей квоты</h4>
+
+          {% get_daily_quota_graph as graph_json %}
+
+          {% if graph_json %}
+            <div id="plot_div" style="height: 600px;"></div>
+            <script>
+              const graph_json = JSON.parse('{{ graph_json|escapejs }}');
+              Plotly.newPlot('plot_div', graph_json.data, graph_json.layout, {
+                responsive: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: [
+                  'lasso2d', 'select2d', 'resetScale2d', 'toggleSpikelines'
+                ]
+              });
+            </script>
+          {% else %}
+            <p class="text-center text-muted">График пока недоступен</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

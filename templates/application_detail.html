@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/selectize.default.css' %}">
+<link rel="stylesheet" href="{% static 'bootstrap/css/bootstrap.min.css' %}">
+<style>
+    .detail-section {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .detail-section h4 {
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      color: #495057;
+    }
+    .detail-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .detail-value {
+        padding: 8px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+</style>
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Детали заявки #{{ object.sample_code }}</h2>
+        <a href="{% url 'application_list' %}" class="btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Вернуться к списку
+        </a>
+    </div>
+
+
+    <div class="alert alert-{{ object.status_badge }} mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Статус: {{ object.get_status_display }}</h5>
+            <span class="badge bg-dark">Создана: {{ object.date|date:"d.m.Y" }}</span>
+        </div>
+    </div>
+
+    {% if object.status != 'submitted' %}
+    <div class="detail-section">
+        <h4>Экспериментальная информация</h4>
+        <div class="row">
+            <div class="col-6 mb-3">
+                <div class="detail-label">Комментарий оператора</div>
+                <div class="detail-value">
+                    {% if object.commentary %}
+                    {{ object.commentary }}
+                    {% else %}
+                    Без комментариев
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-6 mb-3">
+                <div class="detail-label">Оператор исполнитель</div>
+                <div class="detail-value">
+                    {% if object.operator %}
+                    {{ object.operator }}
+                    {% else %}
+                    Ошибка, оператор не указан!
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="detail-label">Директория данных</div>
+            <div class="detail-value">
+                {% if object.raw_data_dir %}
+                {{ object.raw_data_dir }}
+                {% else %}
+                Директория не указана!
+                {% endif %}
+            </div>
+        </div>
+    <div>
+    {% endif %}
+    {% if object.probes.all %}
+        <div class="detail-section">
+            <h4>Информация о пробах</h4>
+
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>Номер пробы</th>
+                        <th>Габитус</th>
+                        <th>Размеры (x, y, z), мкм</th>
+                        <th>Цвет</th>
+                        <th>Тип решетки</th>
+                        <th>Параметры ячейки</th>
+                        <th>Разрешение (dmin)</th>
+                        <th>Тип пробы</th>
+                        <th>Объем данных</th>
+                        <th>Статус обработки</th>
+                        <th>Код БД</th>
+                        <th>DOI</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for probe in object.probes.all %}
+                    <tr>
+                        <td>{{ probe.number }}</td>
+                        <td>{{ probe.habit }}</td>
+                        <td>
+                            {% if probe.size_x and probe.size_y and probe.size_z %}
+                            {{ probe.size_x }} × {{ probe.size_y }} × {{ probe.size_z }}
+                            {% else %}
+                            Не указано
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if probe.color2 and probe.color2 != '' %}
+                            {{ probe.get_color1_display }} / {{ probe.get_color2_display }}
+                            {% else %}
+                            {{ probe.get_color1_display }}
+                            {% endif %}
+                        </td>
+                        <td>{{ probe.get_lattice_type_display }}</td>
+                        <td>
+                            {% if probe.a and probe.b and probe.c %}
+                            {{probe.parameter_str}}
+                            {% else %}
+                            Не указано
+                            {% endif %}
+                        </td>
+                        <td>{{ probe.dmin|default:"Не указано" }} Å</td>
+                        <td>{{ probe.get_smpl_type_display }}</td>
+                        <td>{{ probe.get_data_quantity_display }}</td>
+                        <td>{{ probe.get_proc_status_display }}</td>
+                        <td>{{ probe.db_code_found|default:"Не найдено" }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if probe.publication_attachable %}
+                                <button type="button" class="btn btn-warning" data-bs-toggle="modal"
+                                        data-bs-target="#addDoiModal{{ probe.id }}"
+                                        title="Прикрепить DOI к пробе">
+                                    <i class="fas fasbtn fa-link"></i>
+                                </button>
+
+                                <div class="modal fade" id="addDoiModal{{ probe.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Добавить DOI к пробе "{{ probe.number }}"</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                {% if probe.publications.exists %}
+                                                <p>Уже привязанные DOI:</p>
+                                                <ul>
+                                                    {% for pub in probe.publications.all %}
+                                                    <li>{{ pub.doi }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                                {% endif %}
+
+                                                <form method="post" action="{% url 'add_doi_to_probe' %}">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="probe" value="{{ probe.id }}">
+                                                    <input type="hidden" name="app_code" value="{{ object.application_code }}">
+                                                    <div class="mb-3">
+                                                        <label for="doiInput{{ probe.id }}" class="form-label">DOI</label>
+                                                        <input type="text" class="form-control" id="doiInput{{ probe.id }}"
+                                                               name="doi" placeholder="Введите DOI" required>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn-secondary btn-sm"
+                                                                data-bs-dismiss="modal">Отмена
+                                                        </button>
+                                                        <button type="submit" class="btn-primary btn-sm">
+                                                            Добавить DOI
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+    </div>
+
+
+    <div class="detail-section">
+        <h4>Общая информация</h4>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Код образца</div>
+                <div class="detail-value">{{ object.sample_code }}</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Проект</div>
+                <div class="detail-value">{{ object.project }}</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Состав</div>
+                <div class="detail-value">{{ object.composition }}</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Срок выполнения</div>
+                <div class="detail-value">
+                    {% if object.deadline %}
+                    {{ object.deadline|date:"d.m.Y" }}
+                    {% else %}
+                    Не указан
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Приоритет ASAP</div>
+                <div class="detail-value">
+                    {% if object.asap_priority %}Да{% else %}Нет{% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Тип эксперимента</div>
+                <div class="detail-value">{{ object.get_experiment_type_display }}</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Заказчик</div>
+                <div class="detail-value">{{ object.client.get_full_name }}</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Лаборатория</div>
+                <div class="detail-value">{{ object.lab.name }}</div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="detail-section">
+        <h4>Характеристики образца</h4>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Тара</div>
+                <div class="detail-value">{{ object.tare }}</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Внешний вид образца</div>
+                <div class="detail-value">{{ object.sample_appearance }}</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Маточный раствор</div>
+                <div class="detail-value">{{ object.mother_solution }}</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Присутствие обязательно</div>
+                <div class="detail-value">
+                    {% if object.presence_is_necessary %}Да{% else %}Нет{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Желаемые ПЭЯ/ПГС</div>
+                <div class="detail-value">{{ object.desired_UCP_SG_appearance }}</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Нежелательные ПЭЯ/ПГС</div>
+                <div class="detail-value">{{ object.undesired_UCP_SG_appearance }}</div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="detail-section">
+        <h4>Условия хранения</h4>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Место хранения</div>
+                <div class="detail-value">{{ object.sample_storage }}</div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Условия хранения</div>
+                <div class="detail-value">{{ object.sample_storage_conditions }}</div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="detail-section">
+        <h4>Оборудование и персонал</h4>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Дифрактометр</div>
+                <div class="detail-value">
+                    {% if object.diffractometer %}
+                    {{ object.diffractometer.device_name }}
+                    {% else %}
+                    Не указан
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Желаемый структурщик</div>
+                <div class="detail-value">
+                    {% if object.structurer_desired %}
+                    {{ object.structurer_desired }}
+                    {% else %}
+                    Не указан
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Желаемый оператор</div>
+                <div class="detail-value">
+                    {% if object.operator_desired %}
+                    {{ object.operator_desired }}
+                    {% else %}
+                    Не указан
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Желаемый кристаллохимик</div>
+                <div class="detail-value">
+                    {% if object.crystchemist_desired %}
+                    {{ object.crystchemist_desired }}
+                    {% else %}
+                    Не указан
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="detail-label">Температура эксперимента</div>
+                <div class="detail-value">{{ object.experiment_temp }} K</div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="detail-section">
+        <h4>Дополнительная информация</h4>
+
+        <div class="row">
+            <div class="col-6 mb-3">
+                <div class="detail-label">Комментарий пользователя к заявке</div>
+                <div class="detail-value">
+                    {% if object.graph_comm %}
+                    {{ object.graph_comm }}
+                    {% else %}
+                    Нет комментариев
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <div class="d-flex justify-content-between mt-4">
+        {% if can_edit %}
+        <a href="{% url 'application_edit' object.application_code %}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Редактировать
+        </a>
+        {% else %}
+        <div class="alert alert-warning mb-0">
+            Вы не можете редактировать эту заявку
+        </div>
+        {% endif %}
+
+        {% if can_delete %}
+        <a href="{% url 'application_delete' object.application_code %}" class="btn btn-danger">
+            <i class="fas fa-trash me-2"></i>Удалить
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

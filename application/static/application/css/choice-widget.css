@@ -1,0 +1,17 @@
+.custom-input {
+    margin-top: 8px;
+    display: none;
+    width: 100%;
+    max-width: 400px;
+}
+
+.choice-select {
+    width: 100%;
+    max-width: 400px;
+}
+
+/* Для совместимости с темой админки */
+.form-row .custom-input {
+    margin-left: 0;
+    padding-left: 0;
+}

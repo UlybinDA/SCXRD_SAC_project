@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Список пользователей лаборатории</h2>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Лаборатория: {{ laboratory.name }}</h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-1"><strong>Код:</strong> {{ laboratory.lab_code }}</p>
+            <p class="mb-1"><strong>Организация:</strong> {{ laboratory.organization }}</p>
+            <p class="mb-0"><strong>Город:</strong> {{ laboratory.city }}, {{ laboratory.country }}</p>
+        </div>
+    </div>
+    {% if user.is_chief or user.is_underchief%}
+    <div class="pb-4 d-flex gap-2">
+        <a class="btn-sm btn-primary btn-sm" href="{% url 'quota_transfer' %}">
+            Трансфер время квоты
+        </a>
+        <a class="btn-sm btn-info btn-sm" href="{% url 'quota_transfer_list' %}">
+            Статистика трансферов
+        </a>
+        <a class="btn-sm btn-info btn-sm" href="{% url 'laboratory_permission' %}">
+            Права лаборатории
+        </a>
+    </div>
+    {% endif %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                <th>ФИО</th>
+                <th>Должность</th>
+                <th>Email</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for user in lab_users %}
+            <tr>
+                <td>{{ user.get_full_name }}</td>
+                <td>{{ user.get_position_display }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                    {% if user.is_active %}
+                        <span class="badge bg-success">Активен</span>
+                    {% else %}
+                        <span class="badge bg-danger">Неактивен</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+
+                        {% if is_chief and user.position != 'CH' %}
+
+                            {% if user.position != 'UC' and user != request.user %}
+                            <button type="button"
+                                    class="btn btn-warning"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#makeUnderchiefModal{{ user.id }}"
+                                    title="Сделать куратором">
+                                <i class="fas fasbtn fa-user-shield"></i>
+                            </button>
+                            {% endif %}
+
+
+                            {% if user.position != 'WR' and user != request.user %}
+                            <button type="button"
+                                    class="btn btn-info"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#makeWorkerModal{{ user.id }}"
+                                    title="Сделать работником">
+                                <i class="fas fasbtn fa-user-tie"></i>
+                            </button>
+                            {% endif %}
+
+
+                            {% if user.position != 'ST' and user != request.user %}
+                            <button type="button"
+                                    class="btn btn-primary"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#makeStudentModal{{ user.id }}"
+                                    title="Сделать студентом">
+                                <i class="fas fasbtn fa-user-graduate"></i>
+                            </button>
+                            {% endif %}
+
+
+                            {% if user.is_active and user != request.user %}
+                            <button type="button"
+                                    class="btn btn-danger"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deactivateModal{{ user.id }}"
+                                    title="Деактивировать пользователя">
+                                <i class="fas fasbtn fa-user-slash"></i>
+                            </button>
+                            {% endif %}
+
+                            {% if user == request.user %}
+                            <button class="btn btn-secondary disabled" title="Нельзя изменить свою должность">
+                                <i class="fas fasbtn fa-ban"></i>
+                            </button>
+                            {% endif %}
+
+                        {% elif is_underchief %}
+
+                            {% if user.position != 'WR' and user != request.user %}
+                            <button type="button"
+                                    class="btn btn-info"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#makeWorkerModal{{ user.id }}"
+                                    title="Сделать работником">
+                                <i class="fas fasbtn fa-user-tie"></i>
+                            </button>
+                            {% endif %}
+
+
+                            {% if user.position != 'ST' and user != request.user %}
+                            <button type="button"
+                                    class="btn btn-primary"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#makeStudentModal{{ user.id }}"
+                                    title="Сделать студентом">
+                                <i class="fas fasbtn fa-user-graduate"></i>
+                            </button>
+                            {% endif %}
+
+
+                            {% if user.is_active and user != request.user %}
+                            <button type="button"
+                                    class="btn btn-danger"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deactivateModal{{ user.id }}"
+                                    title="Деактивировать пользователя">
+                                <i class="fas fasbtn fa-user-slash"></i>
+                            </button>
+                            {% endif %}
+
+                            {% if user == request.user %}
+                            <button class="btn btn-secondary disabled" title="Нельзя изменить свою должность">
+                                <i class="fas fasbtn fa-ban"></i>
+                            </button>
+                            {% endif %}
+
+
+                        {% else %}
+                            <button class="btn btn-secondary disabled" title="Нет прав для управления">
+                                <i class="fas fasbtn fa-ban"></i>
+                            </button>
+                        {% endif %}
+                    </div>
+
+
+
+
+                    {% if is_chief and user.position != 'UC' and user != request.user %}
+                    <div class="modal fade" id="makeUnderchiefModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Подтверждение назначения</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Назначить пользователя <strong>{{ user.get_full_name }}</strong> куратором лаборатории?</p>
+                                    <p class="text-muted"><small>Куратор может управлять ролями других пользователей (кроме назначения кураторов).</small></p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                        <input type="hidden" name="action" value="make_underchief">
+                                        <button type="submit" class="btn-sm btn-warning">Назначить куратором</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+
+                    {% if user.position != 'WR' and user != request.user and is_chief or is_underchief %}
+                    <div class="modal fade" id="makeWorkerModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Подтверждение назначения</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Назначить пользователя <strong>{{ user.get_full_name }}</strong> работником лаборатории?</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                        <input type="hidden" name="action" value="make_worker">
+                                        <button type="submit" class="btn-sm btn-info">Назначить работником</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+
+                    {% if user.position != 'ST' and user != request.user and is_chief or is_underchief %}
+                    <div class="modal fade" id="makeStudentModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Подтверждение назначения</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Назначить пользователя <strong>{{ user.get_full_name }}</strong> студентом лаборатории?</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                        <input type="hidden" name="action" value="make_student">
+                                        <button type="submit" class="btn-sm btn-primary">Назначить студентом</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+
+                    {% if user.is_active and user != request.user and is_chief or is_underchief %}
+                    <div class="modal fade" id="deactivateModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Подтверждение деактивации</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Деактивировать пользователя <strong>{{ user.get_full_name }}</strong>?</p>
+                                    <p class="text-danger"><small>Пользователь не сможет войти в систему. Отменить данное действие может только администратор!
+                                    </small></p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                        <input type="hidden" name="action" value="deactivate">
+                                        <button type="submit" class="btn-sm btn-danger">Деактивировать</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center">Нет активных пользователей в лаборатории</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+
+    {% if is_paginated %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">&laquo; Первая</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Вперед</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a>
+            </li>
+            {% endif %}
+
+
+        </ul>
+    </nav>
+    {% endif %}
+
+                {% if has_users_with_permissions %}
+                <div class="card mb-4">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0">Пользователи с правами на подачу заявок</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Эти пользователи могут создавать заявки от имени лаборатории, но не являются её членами</p>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                <tr>
+                                    <th>ФИО</th>
+                                    <th>Лаборатория</th>
+                                    <th>Лаборатория</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for user in users_with_permissions %}
+                                <tr>
+                                    <td>{{ user.get_full_name }}</td>
+                                    <td>{{ user.laboratory }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.is_active %}
+                                            <span class="badge bg-success">Активен</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Неактивен</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if is_chief or is_underchief %}
+                                            <button type="button"
+                                                    class="btn-sm btn-danger"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#removePermissionsModal{{ user.id }}"
+                                                    title="Лишить прав на подачу заявок">
+                                                <i class="fas fa-user-times"></i> Лишить прав
+                                            </button>
+                                            {% else %}
+                                            <button class="btn btn-secondary disabled" title="Нет прав для управления">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+
+
+                                        {% if is_chief or is_underchief %}
+                                        <div class="modal fade" id="removePermissionsModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Подтверждение удаления прав</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Лишить пользователя <strong>{{ user.get_full_name }}</strong> прав на создание заявок от лица лаборатории <strong>{{ laboratory.name }}</strong>?</p>
+                                                        <p class="text-warning"><small>Пользователь больше не сможет создавать заявки от имени этой лаборатории.</small></p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn-sm btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                                        <form method="post" action="{% url 'take_away_permissions' %}">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="worker" value="{{ user.id }}">
+                                                            <button type="submit" class="btn-sm btn-danger">Лишить прав</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+</div>
+
+<style>
+.table-responsive {
+    background-color: #f8f9fa;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.btn-group .btn {
+    margin-right: 2px;
+}
+.fasbtn {
+    color: #0d6efd;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+
+
+.fas {
+    font-size: 0.9em;
+}
+
+
+.alert {
+    border-radius: 8px;
+}
+</style>
+{% endblock %}

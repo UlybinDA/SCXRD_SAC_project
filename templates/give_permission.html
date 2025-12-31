@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+<script src="{% static 'js/selectize.min.js' %}"></script>
+<div class="container mt-4">
+
+  <h2 class="mb-4">{{ title }}</h2>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="id_new_user" class="form-label">{{ form.new_user.label }}</label>
+          {{ form.new_user }}
+        </div>
+
+        <button type="submit" class="btn-sm btn-primary">Предоставить доступ</button>
+        <a href="{% url 'lab_list' %}" class="btn btn-secondary ms-2">Отмена</a>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+$('#id_new_user').selectize({
+    placeholder: 'Введите имя пользователя...',
+    valueField: 'id',
+    labelField: 'text',
+    searchField: 'text',
+    maxItems: 1,
+    create: false,
+    load: function(query, callback) {
+        if (!query.length) return callback();
+        $.ajax({
+            url: "{% url 'user_search_api' %}",
+            data: { q: query },
+            type: 'GET',
+            dataType: 'json',
+            success: function(res) { callback(res.results); },
+            error: function() { callback(); }
+        });
+    }
+});
+</script>
+
+{% endblock %}
+

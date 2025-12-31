@@ -1,0 +1,694 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% load custom_filters %}
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/selectize.default.css' %}">
+<link rel="stylesheet" href="{% static 'bootstrap/css/bootstrap.min.css' %}">
+<script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+<script src="{% static 'js/selectize.min.js' %}"></script>
+<script src="{% static 'bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+
+<style>
+    .form-section {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-section h4 {
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      color: #495057;
+    }
+    .required-field label:after {
+      content: " *";
+      color: #dc3545;
+    }
+</style>
+
+<div class="container mt-4">
+    {% if object %}
+        <h2 class="mb-4">Редактирование заявки #{{ object.sample_code }}</h2>
+    {% else %}
+        <h2 class="mb-4">Создание новой заявки</h2>
+    {% endif %}
+
+    {% if not can_edit and object %}
+        <div class="container mt-5">
+            <div class="alert alert-danger">
+                <h4>Редактирование запрещено!</h4>
+                <p>Вы не можете редактировать эту заявку, так как:</p>
+                <ul>
+                    {% if object.status in 'completed rejected cancelled' %}
+                        <li>Заявка имеет статус "{{ object.get_status_display }}"</li>
+                    {% endif %}
+                    {% if object.client != request.user %}
+                        <li>Вы не являетесь автором этой заявки</li>
+                    {% endif %}
+                    {% if request.user.position not in 'CH UC' or object.lab != request.user.laboratory %}
+                        <li>Вы не являетесь руководителем лаборатории этой заявки</li>
+                    {% endif %}
+                    {% if not request.user.is_superuser and not request.user.operator_profile.is_active %}
+                        <li>Вы не являетесь активным оператором</li>
+                    {% endif %}
+                </ul>
+                <a href="{% url 'application_list' %}" class="btn-sm btn-secondary mt-3">
+                    <i class="fas fa-arrow-left me-2"></i>Вернуться к списку
+                </a>
+            </div>
+        </div>
+    {% else %}
+    <form method="post" class="container mt-4 mb-5">
+        {% csrf_token %}
+        <div class="form-section">
+            <h4>Общая информация</h4>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label>Код образца</label>
+                        {% if 'sample_code' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Код образца"
+                              data-bs-content="{{ form.tooltips.sample_code }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.sample_code }}
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label>Проект</label>
+                        {% if 'project' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Проект"
+                              data-bs-content="{{ form.tooltips.project }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.project }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label>Состав</label>
+                        {% if 'composition' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Состав"
+                              data-bs-content="{{ form.tooltips.composition }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.composition }}
+                    </div>
+                </div>
+                {% if user.position == 'CH' or user.position == 'UC' %}
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label>Срок выполнения</label>
+                        {% if 'deadline' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Дедлайн"
+                              data-bs-content="{{ form.tooltips.deadline }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.deadline }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="row">
+                {% if 'asap_priority' in form.fields %}
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+
+                        <label class="form-check-label">
+                            {{ form.asap_priority }} Приоритет ASAP
+
+                        </label>
+                        {% if 'asap_priority' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Приоритет ASAP"
+                              data-bs-content="{{ form.tooltips.asap_priority }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% endif %}
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label class="form-check-label">
+                            Тип эксперимента {{ form.experiment_type }}
+                            {% if 'experiment_type' in form.tooltips %}
+                            <span class="ms-1"
+                                  data-bs-toggle="popover"
+                                  data-bs-placement="top"
+                                  data-bs-title="Тип эксперимента"
+                                  data-bs-content="{{ form.tooltips.experiment_type }}"
+                                  data-bs-trigger="focus"
+                                  tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                            {% endif %}
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label class="form-check-label">
+                            {{ form.presence_is_necessary }} Присутствие обязательно
+
+                        </label>
+                        {% if 'presence_is_necessary' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Присутствие обязательно"
+                              data-bs-content="{{ form.tooltips.presence_is_necessary }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                            <i class="fas fa-question-circle text-info"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label class="form-check-label">
+                            Внутренний телефон {{ form.inter_telephone }}
+                        </label>
+                        {% if 'inter_telephone' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Внутренний телефон"
+                              data-bs-content="{{ form.tooltips.inter_telephone }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                            <i class="fas fa-question-circle text-info"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label class="form-check-label">
+                            Контакты для срочной связи {{ form.urgt_comm }}
+                        </label>
+                        {% if 'urgt_comm' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Контакты для срочной связи"
+                              data-bs-content="{{ form.tooltips.urgt_comm }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                            <i class="fas fa-question-circle text-info"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if 'lab' in form.fields %}
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label class="form-check-label">
+                            {{ form.lab }} Лаборатория
+                        </label>
+                        {% if 'lab' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Лаборатория"
+                              data-bs-content="{{ form.tooltips.lab }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                            <i class="fas fa-question-circle text-info"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% endif %}
+            </div>
+        </div>
+
+
+        <div class="form-section">
+            <h4>Характеристики образца</h4>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label>Тара</label>
+                        {% if 'tare' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Тара"
+                              data-bs-content="{{ form.tooltips.tare }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.tare }}
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label>Внешний вид образца</label>
+                        {% if 'sample_appearance' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Внешний вид образца"
+                              data-bs-content="{{ form.tooltips.sample_appearance }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.sample_appearance }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label>Маточный раствор</label>
+                        {% if 'mother_solution' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Маточный раствор"
+                              data-bs-content="{{ form.tooltips.mother_solution }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.mother_solution }}
+                    </div>
+                </div>
+
+
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label>{{ form.desired_UCP_SG_appearance.label_tag }}</label>
+                        {% if 'desired_UCP_SG_appearance' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Желаемые параметры"
+                              data-bs-content="{{ form.tooltips.desired_UCP_SG_appearance }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.desired_UCP_SG_appearance }}
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label>{{ form.undesired_UCP_SG_appearance.label_tag }}</label>
+                        {% if 'undesired_UCP_SG_appearance' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Нежелаемые параметры"
+                              data-bs-content="{{ form.tooltips.undesired_UCP_SG_appearance }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.undesired_UCP_SG_appearance }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="form-section">
+            <h4>Условия хранения</h4>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label>Место хранения</label>
+                        {% if 'sample_storage' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Место хранения"
+                              data-bs-content="{{ form.tooltips.sample_storage }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.sample_storage }}
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label>Условия хранения</label>
+                        {% if 'sample_storage_conditions' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Условия хранения"
+                              data-bs-content="{{ form.tooltips.sample_storage_conditions }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.sample_storage_conditions }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="form-section">
+            <h4>Выбор оборудования и персонала</h4>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label>Дифрактометр</label>
+                        {% if 'diffractometer' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Дифрактометр"
+                              data-bs-content="{{ form.tooltips.diffractometer }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.diffractometer }}
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label>Желаемый структурщик</label>
+                        {% if 'structurer_desired' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Желаемый структурщик"
+                              data-bs-content="{{ form.tooltips.structurer_desired }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.structurer_desired }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label>Желаемый оператор</label>
+                        {% if 'operator_desired' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Желаемый оператор"
+                              data-bs-content="{{ form.tooltips.operator_desired }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.operator_desired }}
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="form-group">
+                        <label>Желаемый кристаллохимик</label>
+                        {% if 'crystchemist_desired' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Желаемый кристаллохимик"
+                              data-bs-content="{{ form.tooltips.crystchemist_desired }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.crystchemist_desired }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="form-group required-field">
+                        <label>Температура эксперимента, K</label>
+                        {% if 'experiment_temp' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Температура эксперимента"
+                              data-bs-content="{{ form.tooltips.experiment_temp }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.experiment_temp }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h4>Дополнительная информация</h4>
+
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <div class="form-group">
+                        <label>Комментарий к заявке</label>
+                        {% if 'graph_comm' in form.tooltips %}
+                        <span class="ms-1"
+                              data-bs-toggle="popover"
+                              data-bs-placement="top"
+                              data-bs-title="Комментарий к заявке"
+                              data-bs-content="{{ form.tooltips.graph_comm }}"
+                              data-bs-trigger="focus"
+                              tabindex="0">
+                        <i class="fas fa-question-circle text-info"></i>
+                    </span>
+                        {% endif %}
+                        {{ form.graph_comm }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between mt-4">
+            <button type="reset" class="btn-sm btn-secondary">Сбросить</button>
+            <div>
+                {% if object %}
+                <a href="{% url 'application_delete' object.application_code %}" class="btn-sm btn-danger">Удалить</a>
+                {% else %}
+                <button type="submit" name="save_draft" class="btn-sm btn-info" onclick="this.form.setAttribute('novalidate','');">
+                    Сохранить шаблон
+                </button>
+                {% if user.has_app_draft %}
+                <a href="?use_draft=1" class="btn-sm btn-warning">
+                    Использовать шаблон
+                </a>
+                {% endif %}
+                {% endif %}
+                <button type="submit" class="btn-sm btn-primary">
+                    {% if object %}Сохранить изменения{% else %}Создать заявку{% endif %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const safeParseJSON = (str) => {
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                return [];
+            }
+        };
+
+        function initAutocomplete(fieldId) {
+            const input = document.getElementById(fieldId);
+            if (!input) return;
+
+            const currentValue = input.value.trim();
+            const rawOptions = input.dataset.options;
+            let options = rawOptions ? safeParseJSON(rawOptions) : [];
+
+            if (currentValue && !options.includes(currentValue)) {
+                options = [currentValue, ...options];
+            }
+
+            const selectize = $(input).selectize({
+                options: options.map(opt => ({ value: opt, text: opt })),
+                create: true,
+                createOnBlur: true,
+                maxItems: 1,
+                placeholder: "Выберите или введите..."
+            });
+
+            const selectizeInstance = $(input)[0].selectize;
+            if (currentValue) {
+                selectizeInstance.setValue(currentValue);
+            }
+        }
+
+        const autocompleteFields = [
+            'id_tare',
+            'id_sample_appearance',
+            'id_mother_solution',
+            'id_sample_storage',
+            'id_sample_storage_conditions'
+        ];
+
+        autocompleteFields.forEach(fieldId => initAutocomplete(fieldId));
+
+        $('#id_structurer_desired, #id_operator_desired, #id_crystchemist_desired, #id_diffractometer').selectize({
+            placeholder: "Выберите вариант...",
+            allowEmptyOption: false,
+            create: false,
+            render: {
+                option: function(item, escape) {
+                    return '<div class="option">' + escape(item.text) + '</div>';
+                }
+            }
+        });
+
+        $('#id_deadline').attr('type', 'date');
+
+        const requiredFields = ['id_sample_code'];
+        requiredFields.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.required = true;
+                const label = element.closest('.form-group').querySelector('label');
+                if (label) {
+                    label.classList.add('required-field');
+                }
+            }
+        });
+
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+        var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl,{html: true})
+        });
+
+        document.querySelector('form').addEventListener('submit', function() {
+            autocompleteFields.forEach(fieldId => {
+                const input = document.getElementById(fieldId);
+                if (input) {
+                    const selectize = input.selectize;
+                    if (selectize) {
+                        input.value = selectize.getValue();
+                    }
+                }
+            });
+        });
+    });
+</script>
+
+<style>
+    .popover {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        max-width: 750px;
+    }
+
+    .popover-header {
+        background-color: #2c3e50;
+        color: white;
+        border-bottom: 1px solid #1a252f;
+        border-radius: 7px 7px 0 0;
+    }
+
+    .popover-body {
+        color: #2c3e50;
+        font-size: 0.9rem;
+    }
+    input[type="number"][readonly]::-webkit-outer-spin-button,
+    input[type="number"][readonly]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+
+    input[type="number"][readonly] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+ .template-warning { border-left: 4px solid #ffc107 !important; }
+.template-danger { border-left: 4px solid #dc3545 !important; }
+.template-info { border-left: 4px solid #0dcaf0 !important; }
+
+.form-control, .form-select {
+    transition: border-color 0.3s ease;
+}
+</style>
+{% endblock %}

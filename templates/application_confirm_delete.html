@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Удаление заявки</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">{{ object.sample_code }}</h5>
+            <p class="card-text">
+                <strong>Статус:</strong>
+                <span class="badge bg-{{ object.status_badge }}">
+                    {{ object.get_status_display }}
+                </span>
+            </p>
+            <p class="card-text">
+                <strong>Дата создания:</strong> {{ object.date|date:"d.m.Y" }}
+            </p>
+            <p class="card-text">
+                <strong>Клиент:</strong> {{ object.client.get_full_name }}
+            </p>
+            <p class="card-text">
+                <strong>Лаборатория:</strong> {{ object.lab.name }}
+            </p>
+        </div>
+    </div>
+
+    {% if not can_delete %}
+    <div class="alert alert-danger">
+        <h5>Удаление запрещено!</h5>
+        <p>
+            Вы не можете удалить эту заявку, так как:
+            <ul>
+                {% if object.status in 'completed rejected cancelled' %}
+                <li>Заявка имеет статус "{{ object.get_status_display }}"</li>
+                {% endif %}
+                {% if object.client != request.user %}
+                <li>Вы не являетесь автором этой заявки</li>
+                {% endif %}
+                {% if not is_chief or not is_underchief or object.lab != request.user.laboratory %}
+                <li>Вы не являетесь руководителем лаборатории этой заявки</li>
+                {% endif %}
+            </ul>
+        </p>
+    </div>
+    <a href="{% url 'application_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Вернуться к списку
+    </a>
+    {% else %}
+    <form method="post">
+        {% csrf_token %}
+        <p>Вы уверены, что хотите удалить заявку "{{ object.sample_code }}"?</p>
+        <button type="submit" class="btn-sm btn-danger">
+            <i class="fas fa-trash me-2"></i>Удалить
+        </button>
+        <a href="{% url 'application_list' %}" class="btn-sm btn-secondary">
+            <i class="fas fa-times me-2"></i>Отмена
+        </a>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

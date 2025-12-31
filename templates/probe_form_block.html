@@ -1,0 +1,17 @@
+{% for field_name in field_names %}
+  {% with field=form[field_name] %}
+    <div class="col-md-6 mb-3">
+      <label class="form-label" for="{{ field.id_for_label }}">
+        {{ field.label }}
+      </label>
+      {{ field }}
+
+      {% if field.help_text %}
+        <small class="form-text text-muted">{{ field.help_text }}</small>
+      {% endif %}
+      {% if field.errors %}
+        <div class="invalid-feedback d-block">{{ field.errors }}</div>
+      {% endif %}
+    </div>
+  {% endwith %}
+{% endfor %}

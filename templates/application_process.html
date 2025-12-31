@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% load custom_filters %}
+{% block content %}
+<div class="container-fluid p-0" style="height: 100vh; width: 2000px">
+    <div class="row g-0 h-100">
+        <h1 class="mb-4">Выполнение заявки: {{ application.sample_code }}</h1>
+
+        <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate
+              style="display: flex; gap: 20px; height: calc(100vh - 150px);">
+            {% csrf_token %}
+
+
+            {% if form.errors %}
+            <div class="alert alert-error">
+                {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                <p>{{ field }}: {{ error }}</p>
+                {% endfor %}
+                {% endfor %}
+            </div>
+            {% endif %}
+                <div class="col-6 " style="overflow-y: auto; background: white;">
+                    {% for group_name, fields in form.get_grouped_fields.items %}
+                    {% if fields %}
+                    <fieldset class="form-group mb-4 bg-white p-3 rounded-md shadow-sm">
+                        <legend class="font-bold text-gray-700 text-sm mb-2 pb-1 border-b border-gray-200">
+                            {{ group_name }}
+                        </legend>
+
+                        <table class="w-full text-sm">
+                            <tbody>
+                            {% for field_info in fields %}
+                            {% if field_info.is_readonly %}
+                            {% if field_info.value and field_info.value|stringformat:"s" != "" %}
+                            <tr class="align-top">
+                                <td class="py-1 pr-4 text-gray-500 w-1/3">
+                                    {{ field_info.label }}
+                                    {% if field_info.field.name in form.tooltips %}
+                                    <span class="ms-1"
+                                          data-bs-toggle="popover"
+                                          data-bs-placement="top"
+                                          data-bs-title="{{ field_info.label }}"
+                                          data-bs-content="{{ form.tooltips|get_item:field_info.field.name }}"
+                                          data-bs-trigger="focus"
+                                          tabindex="0">
+                                        <i class="fas fa-question-circle text-info"></i>
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-1 text-gray-800">{{ field_info.value }}</td>
+                            </tr>
+                            {% endif %}
+                            {% else %}
+                            <tr class="align-top">
+                                <td colspan="2" class="py-1">
+                                    <label for="{{ field_info.field.id_for_label }}">
+                                        {{ field_info.label }}
+                                        {% if field_info.field.field.required %}
+                                        <span class="text-danger">*</span>
+                                        {% endif %}
+
+                                        {% if field_info.field.name in form.tooltips %}
+                                        <span class="ms-1"
+                                              data-bs-toggle="popover"
+                                              data-bs-placement="top"
+                                              data-bs-title="{{ field_info.label }}"
+                                              data-bs-content="{{ form.tooltips|get_item:field_info.field.name }}">
+                                            <i class="fas fa-question-circle text-info"></i>
+                                        </span>
+                                        {% endif %}
+                                    </label>
+                                    {{ field_info.field }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </fieldset>
+                    {% endif %}
+                    {% endfor %}
+                    <div class="d-flex justify-content-center mt-4 gap-3">
+
+                        <a href="{% url 'application_detail' application_code=application.application_code %}"
+                           class="btn-sm btn-secondary w-10">
+                            <i class="fas fa-arrow-left me-2"></i>Отмена
+                        </a>
+                        <button type="submit" name="action" value="saved" class="btn-sm btn-primary w-10">
+                            <i class="fas fa-save me-2"></i>Сохранить изменения
+                        </button>
+                        {% if application.status == "submitted" %}
+                        <button type="submit" name="action" value="completed" class="btn-sm btn-success w-10">
+                            <i class="fas fa-check me-2"></i>Завершить заявку
+                        </button>
+                        <button type="submit" name="action" value="rejected" class="btn-sm btn-danger w-10">
+                            <i class="fas fa-times me-2"></i>Отклонить заявку
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+
+            <div class="col-6" style="overflow-y: auto; background: white;">
+                <div style="flex: 1; overflow-y: auto; padding: 15px;">
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                            <span>Пробы</span>
+                            <button type="button" class="btn btn-sm btn-light me-4" id="add-probe-form">
+                                <i class="fas fa-plus-circle me-1"></i>Добавить пробу
+                            </button>
+                        </div>
+
+                        <div class="card-body">
+                            {{ formset.management_form }}
+
+
+                            {% if formset.non_form_errors %}
+                            <div class="alert alert-danger">
+                                {{ formset.non_form_errors }}
+                            </div>
+                            {% endif %}
+                            <ul class="nav nav-tabs mb-3" id="probe-tabs" role="tablist">
+                                {% for form in probe_forms %}
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link {% if forloop.first %}active{% endif %}"
+                                            id="probe-tab-{{ forloop.counter0 }}"
+                                            data-bs-toggle="tab"
+                                            data-bs-target="#probe-form-{{ forloop.counter0 }}"
+                                            type="button"
+                                            role="tab"
+                                            aria-controls="probe-form-{{ forloop.counter0 }}"
+                                            aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+
+                                        Проба {{ forloop.counter }}
+                                        {% if not form.instance.pk %}(новая){% endif %}
+                                    </button>
+                                </li>
+                                {% endfor %}
+                            </ul>
+
+
+                            <div class="tab-content" id="probe-forms-container">
+                                {% for form in probe_forms %}
+                                <div class="tab-pane fade {% if forloop.first %}show active{% endif %} probe-form"
+                                     id="probe-form-{{ forloop.counter0 }}"
+                                     role="tabpanel"
+                                     aria-labelledby="probe-tab-{{ forloop.counter0 }}">
+                                    {% for hidden in form.hidden_fields %}
+                                    {{ hidden }}
+                                    {% endfor %}
+
+                                    {% if form.non_field_errors %}
+                                    <div class="alert alert-danger">
+                                        {{ form.non_field_errors }}
+                                    </div>
+                                    {% endif %}
+
+                                    {% for group_name, fields in form.grouped_fields.items %}
+                                    <div class="card mb-3" data-group-name="{{ group_name }}">
+                                        <div class="card-header bg-light">
+                                            <h5 class="mb-0">{{ group_name }}</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                {% for field_data in fields %}
+                                                {% if group_name == "Результат" %}
+                                                <div class="col-md-6 mb-3">
+                                                    {% else %}
+                                                    <div class="col-md-6 mb-3">
+                                                        {% endif %}
+                                                        <label class="form-label"
+                                                               for="{{ field_data.field.id_for_label }}">
+                                                            {{ field_data.label }}
+                                                            {% if field_data.field.field.required %}
+                                                            <span class="text-danger">*</span>
+                                                            {% endif %}
+                                                        </label>
+                                                        {{ field_data.field }}
+                                                        {% if field_data.field.errors %}
+                                                        <div class="invalid-feedback d-block">
+                                                            {{ field_data.field.errors }}
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+
+
+                                        <div class="probe-signature mt-4 p-3 bg-light border rounded">
+                                            <div class="text-center">
+                                                <strong>Проба № {{ forloop.counter }}</strong>
+                                            </div>
+                                        </div>
+
+                                        {% if form.instance.pk %}
+                                        <div class="btn-sm btn-danger remove-probe-form mt-3">
+                                            {{ form.DELETE }}
+                                            Удалить эту пробу
+                                        </div>
+                                        {% else %}
+                                        <button type="button" class="btn btn-sm btn-danger remove-probe-form mt-3">Удалить
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="empty-probe-form" class="d-none">
+                        {% for group_name, fields in empty_form.grouped_fields.items %}
+                        <div class="card mb-3" data-group-name="{{ group_name }}">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">{{ group_name }}</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for field_data in fields %}
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label" for="{{ field_data.field.id_for_label }}">
+                                            {{ field_data.label }}
+                                            {% if field_data.field.field.required %}
+                                            <span class="text-danger">*</span>
+                                            {% endif %}
+                                        </label>
+                                        {{ field_data.field }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="probe-signature mt-4 p-3 bg-light border rounded">
+                            <div class="text-center">
+                                <strong>Проба № <span class="probe-number">1</span></strong>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('probe-forms-container');
+        const tabsContainer = document.getElementById('probe-tabs');
+        const addButton = document.getElementById('add-probe-form');
+        const totalForms = document.getElementById('id_probes-TOTAL_FORMS');
+        const emptyFormEl = document.getElementById('empty-probe-form');
+
+
+        const requiredFieldsByGroup = {
+            "Внешний вид": ["size_x", "size_y", "size_z","habit"],
+            "Параметры решётки": [],
+            "Предварительные данные": [],
+            "Основные данные": ["smpl_type", "data_quantity"],
+            "Результат": ["proc_status","temperature"]
+        };
+
+
+        function checkGroupCompletion(groupElement) {
+            const groupName = groupElement.dataset.groupName;
+            const requiredFields = requiredFieldsByGroup[groupName] || [];
+
+            let allFieldsFilled = true;
+            let requiredFieldsFilled = true;
+
+
+            const inputs = groupElement.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                if (input.type === 'hidden' || input.disabled) return;
+
+                let isFilled = false;
+
+                if (input.type === 'checkbox') {
+                    isFilled = input.checked;
+                } else if (input.tagName === 'SELECT') {
+                    isFilled = input.value !== '';
+                } else {
+                    isFilled = input.value.trim() !== '';
+                }
+
+
+                const fieldName = input.name.split('-').pop();
+                const isRequired = requiredFields.includes(fieldName);
+
+                if (!isFilled) {
+                    allFieldsFilled = false;
+                    if (isRequired) {
+                        requiredFieldsFilled = false;
+                    }
+                }
+            });
+
+
+            const header = groupElement.querySelector('.card-header');
+            header.classList.remove('bg-success', 'bg-warning', 'bg-danger', 'bg-light');
+
+            if (requiredFields.length === 0) {
+
+                if (allFieldsFilled) {
+                    header.classList.add('bg-success');
+                } else {
+                    header.classList.add('bg-light');
+                }
+            } else {
+                if (allFieldsFilled) {
+                    header.classList.add('bg-success');
+                } else if (requiredFieldsFilled) {
+                    header.classList.add('bg-warning');
+                } else {
+                    header.classList.add('bg-danger');
+                }
+            }
+        }
+
+
+        function updateProbeSignatures() {
+            const forms = container.querySelectorAll('.probe-form');
+            forms.forEach((form, index) => {
+                const signature = form.querySelector('.probe-signature .probe-number');
+                if (signature) {
+                    signature.textContent = index + 1;
+                }
+            });
+        }
+
+
+        function initFormTracking(formElement) {
+            const groups = formElement.querySelectorAll('.card[data-group-name]');
+
+            groups.forEach(group => {
+
+                checkGroupCompletion(group);
+
+
+                const inputs = group.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    input.addEventListener('change', () => checkGroupCompletion(group));
+                    input.addEventListener('input', () => checkGroupCompletion(group));
+                });
+            });
+        }
+
+
+        function updateFormIndexes() {
+            const forms = container.querySelectorAll('.probe-form');
+            const tabs = tabsContainer.querySelectorAll('.nav-item');
+
+            forms.forEach((form, index) => {
+                form.id = `probe-form-${index}`;
+                form.setAttribute('aria-labelledby', `probe-tab-${index}`);
+
+                form.querySelectorAll('input, select, textarea, label').forEach(element => {
+                    if (element.htmlFor) element.htmlFor = element.htmlFor.replace(/-\d+-/g, `-${index}-`);
+                    if (element.id) element.id = element.id.replace(/-\d+-/g, `-${index}-`);
+                    if (element.name) element.name = element.name.replace(/-\d+-/g, `-${index}-`);
+                });
+            });
+
+            tabs.forEach((tab, index) => {
+                const button = tab.querySelector('button');
+                button.id = `probe-tab-${index}`;
+                button.setAttribute('data-bs-target', `#probe-form-${index}`);
+                button.setAttribute('aria-controls', `probe-form-${index}`);
+
+
+                const isNew = button.textContent.includes('(новая)');
+                button.innerHTML = `Проба ${index + 1} ${isNew ? '(новая)' : ''}`;
+            });
+
+            totalForms.value = forms.length;
+
+            // Обновляем подписи с номерами проб
+            updateProbeSignatures();
+        }
+
+        // Функция для активации вкладки
+        function activateTab(tabId) {
+            const tabButton = document.getElementById(tabId);
+            if (tabButton) {
+                new bootstrap.Tab(tabButton).show();
+            }
+        }
+
+        // Функция для вычисления объема на основе параметров
+        function calculateVolume(a, b, c, alpha, beta, gamma) {
+            // Преобразуем углы из градусов в радианы
+            const toRadians = (angle) => angle * (Math.PI / 180);
+
+            const alphaRad = toRadians(alpha);
+            const betaRad = toRadians(beta);
+            const gammaRad = toRadians(gamma);
+
+            // Формула для объема параллелепипеда с учетом углов
+            // V = a * b * c * √(1 - cos²α - cos²β - cos²γ + 2cosα cosβ cosγ)
+            const cosAlpha = Math.cos(alphaRad);
+            const cosBeta = Math.cos(betaRad);
+            const cosGamma = Math.cos(gammaRad);
+
+            const volume = a * b * c * Math.sqrt(
+                1 - Math.pow(cosAlpha, 2) - Math.pow(cosBeta, 2) - Math.pow(cosGamma, 2) +
+                2 * cosAlpha * cosBeta * cosGamma
+            );
+
+            return volume;
+        }
+
+        // Функция для обновления значения volume в конкретной форме
+        function updateVolumeForProbe(probeForm) {
+            // Получаем значения полей
+            const aField = probeForm.querySelector('[id$="-a"]');
+            const bField = probeForm.querySelector('[id$="-b"]');
+            const cField = probeForm.querySelector('[id$="-c"]');
+            const alField = probeForm.querySelector('[id$="-al"]');
+            const btField = probeForm.querySelector('[id$="-bt"]');
+            const gmField = probeForm.querySelector('[id$="-gm"]');
+
+            if (!aField || !bField || !cField || !alField || !btField || !gmField) return;
+
+            const a = parseFloat(aField.value) || 0;
+            const b = parseFloat(bField.value) || 0;
+            const c = parseFloat(cField.value) || 0;
+            const al = parseFloat(alField.value) || 0;
+            const bt = parseFloat(btField.value) || 0;
+            const gm = parseFloat(gmField.value) || 0;
+
+            // Проверяем, что все необходимые поля заполнены
+            if (a > 0 && b > 0 && c > 0 && al > 0 && bt > 0 && gm > 0) {
+                const volume = calculateVolume(a, b, c, al, bt, gm);
+                const volumeField = probeForm.querySelector('[id$="-volume"]');
+                if (volumeField) {
+                    volumeField.value = volume.toFixed(4); // Округляем до 4 знаков
+                }
+            }
+        }
+
+        // Функция для инициализации расчета объема
+        function initVolumeCalculation(probeForm) {
+            const fieldsToWatch = ['a', 'b', 'c', 'al', 'bt', 'gm'];
+
+            fieldsToWatch.forEach(field => {
+                const fieldElement = probeForm.querySelector(`[id$="-${field}"]`);
+                if (fieldElement) {
+                    fieldElement.addEventListener('input', () => updateVolumeForProbe(probeForm));
+                    fieldElement.addEventListener('change', () => updateVolumeForProbe(probeForm));
+                }
+            });
+
+            // Инициализируем расчет при загрузке
+            updateVolumeForProbe(probeForm);
+        }
+
+        function handleDeleteForm(event) {
+            const formContainer = event.target.closest('.probe-form');
+            const formIndex = formContainer.id.split('-').pop();
+            const tabItem = document.querySelector(`#probe-tab-${formIndex}`).closest('.nav-item');
+
+            // Удаляем вкладку и содержимое
+            tabItem.remove();
+            formContainer.remove();
+
+            // Обновляем индексы
+            updateFormIndexes();
+
+            // Активируем первую вкладку, если есть
+            const firstTab = tabsContainer.querySelector('.nav-item:first-child button');
+            if (firstTab) {
+                activateTab(firstTab.id);
+            }
+        }
+
+        container.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('remove-probe-form')) {
+                handleDeleteForm(e);
+            }
+
+            if (e.target && e.target.matches('input[type="checkbox"][id$="-DELETE"]')) {
+                const formContainer = e.target.closest('.probe-form');
+                const formIndex = formContainer.id.split('-').pop();
+                const tabItem = document.querySelector(`#probe-tab-${formIndex}`).closest('.nav-item');
+
+                if (e.target.checked) {
+                    tabItem.classList.add('d-none');
+                } else {
+                    tabItem.classList.remove('d-none');
+                }
+            }
+        });
+
+        addButton.addEventListener('click', function() {
+            const index = totalForms.value;
+
+            // Создаем новую вкладку
+            const newTabHtml = `
+            <li class="nav-item" role="presentation">
+            <button class="nav-link"
+            id="probe-tab-${index}"
+            data-bs-toggle="tab"
+            data-bs-target="#probe-form-${index}"
+            type="button"
+            role="tab"
+            aria-controls="probe-form-${index}"
+            aria-selected="false">
+            Проба ${parseInt(index) + 1} (новая)
+            </button>
+            </li>`;
+            tabsContainer.insertAdjacentHTML('beforeend', newTabHtml);
+
+            // Создаем новую форму
+            const newFormHtml = emptyFormEl.innerHTML.replace(/__prefix__/g, index);
+            const newForm = document.createElement('div');
+            newForm.className = 'tab-pane fade probe-form';
+            newForm.id = `probe-form-${index}`;
+            newForm.setAttribute('role', 'tabpanel');
+            newForm.setAttribute('aria-labelledby', `probe-tab-${index}`);
+            newForm.innerHTML = newFormHtml;
+
+            // Добавляем кнопку удаления
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.className = 'btn-sm btn-danger remove-probe-form mt-3';
+            deleteButton.textContent = 'Удалить';
+            newForm.appendChild(deleteButton);
+
+            container.appendChild(newForm);
+            updateFormIndexes();
+
+            // Инициализируем отслеживание для новой формы
+            initFormTracking(newForm);
+
+            // Инициализируем расчет объема для новой формы
+            initVolumeCalculation(newForm);
+
+            // Активируем новую вкладку
+            activateTab(`probe-tab-${index}`);
+        });
+
+        // Инициализация существующих кнопок удаления
+        document.querySelectorAll('.probe-form .remove-probe-form').forEach(button => {
+            button.addEventListener('click', handleDeleteForm);
+        });
+
+        // Инициализация отслеживания для всех существующих форм
+        document.querySelectorAll('.probe-form').forEach(form => {
+            initFormTracking(form);
+            initVolumeCalculation(form); // Инициализация расчета объема
+        });
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+        var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl,{html: true})
+    });
+
+        // Инициализация номеров проб в подписях
+        updateProbeSignatures();
+    });
+</script>
+
+<style>
+    .probe-form {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border: 1px solid #dee2e6;
+        border-top: none;
+        border-radius: 0 0 5px 5px;
+    }
+    .remove-probe-form {
+        margin-top: 10px;
+    }
+    .invalid-feedback {
+        display: block;
+    }
+    .probe-signature {
+        border: 1px dashed #6c757d;
+        background-color: #f8f9fa !important;
+    }
+
+    .popover {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        max-width: 750px;
+    }
+
+    .popover-header {
+        background-color: #2c3e50;
+        color: white;
+        border-bottom: 1px solid #1a252f;
+        border-radius: 7px 7px 0 0;
+    }
+
+    .popover-body {
+        color: #2c3e50;
+        font-size: 0.9rem;
+    }
+
+    input[type="number"][readonly]::-webkit-outer-spin-button,
+    input[type="number"][readonly]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+
+    input[type="number"][readonly] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+</style>
+{% endblock %}

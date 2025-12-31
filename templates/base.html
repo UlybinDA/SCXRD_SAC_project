@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления заявками</title>
+    <link rel="stylesheet" href="{% static 'bootstrap/css/bootstrap.min.css' %}">
+
+    <link rel="stylesheet" href="{% static 'fontawesome/css/all.min.css' %}">
+
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="/">
+            <i class="fas fa-tasks me-2"></i>
+            <span>SAMPLE TEXT</span>
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'home' %}">
+                        <i class="fas fa-home me-1"></i>Главная
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'application_list' %}">
+                        <i class="fas fa-folder me-1"></i>Мои заявки
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'create_application' %}">
+                        <i class="fas fa-plus-circle me-1"></i>Добавить заявку
+                    </a>
+                </li>
+                {% if user.is_active_operator or user.is_superuser %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'quota_list' %}">
+                        <i class="fas fa-book me-1"></i>Журнал заявок
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'reductions_list' %}">
+                        <i class="fas fa-check-double me-1"></i>Редукция
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'statistics' %}">
+                        <i class="fas fa-list-check me-1"></i>Статистика
+                    </a>
+                </li>
+                {% endif %}
+                {% if user.is_chief or user.is_underchief %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'user_create' %}">
+                        <i class="fas fa-user-plus me-1"></i>Новый пользователь
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'lab_list' %}">
+                        <i class="fas fa-address-card me-1"></i>Лаборатория
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'suggestion' %}">
+                        <i class="fas fa-comment-dots me-1"></i>Предложения
+                    </a>
+                </li>
+            </ul>
+
+
+            <div class="d-flex align-items-center">
+                {% if user.is_authenticated %}
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
+                       data-bs-toggle="dropdown">
+                        <div class="bg-light rounded-circle p-2 me-2 text-primary fw-bold">
+                            {{user.first_name|slice:1}}{{user.last_name|slice:1}}
+                        </div>
+                        <div>
+                            Hi {{ user.first_name}} {{user.last_name}}!
+                        </div>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <form action="{% url 'logout' %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Выход
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+                {% else %}
+                <a class="nav-link" href="{% url 'login' %}">
+                    <i class="fas fa-right-to-bracket me-1"></i>Log In
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
+
+{% load messages_tags %}
+
+{% if messages %}
+<div class="messages">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags|bootstrap_alert_class }} alert-dismissible fade show d-flex justify-content-between align-items-center" role="alert">
+        <div>{{ message }}</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+
+
+
+{% block content %}{% endblock %}
+
+<footer class="bg-light mt-auto py-4 border-top">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <h5 class="mb-3">SAMPLE TEXT</h5>
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="fas fa-envelope me-2 text-primary"></i>
+                        Sample@text.com
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-phone me-2 text-primary"></i>
+                        +X (XXX) XXX XX XX
+                    </li>
+                    <li>
+                        <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                        SAMPLE ADDRESS
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <h5 class="mb-3">SAMPLE TEXT</h5>
+            </div>
+        </div>
+        <hr class="my-3">
+        <div class="text-center text-muted">
+            &copy; SAMPLE TEXT
+        </div>
+    </div>
+</footer>
+
+
+<script src="{% static 'bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+</body>
+</html>

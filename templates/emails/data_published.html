@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Данные по заявке выложены</title>
+</head>
+<body>
+    <h2>Уважаемый пользователь {{ user.get_full_name }},</h2>
+    <p>Данные по заявка <strong>#{{ application.sample_code }}</strong> была выложены на termos://R.</p>
+
+    <h3>Детали заявки:</h3>
+    <ul>
+        <li>Код образца: {{ application.sample_code }}</li>
+        <li>Состав: {{ application.composition }}</li>
+        <li>Дата создания: {{ application.date|date:"d.m.Y" }}</li>
+        <li>Статус: {{ application.get_status_display }}</li>
+    </ul>
+
+    <p>Вы можете просмотреть детали
+        <a href="{{ application_url }}">заявки в системе</a>.
+    </p>
+
+    <p>Это письмо сгенерировано роботом сайта {{ site_name }}, не нужно на него отвечать.
+    </p>
+</body>
+</html>

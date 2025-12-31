@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">{{ page_title }}</h1>
+
+    <form method="post" action="{% url 'statistics' %}">
+        {% csrf_token %}
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="statType" class="form-label">Тип статистики</label>
+                <select class="form-select" id="statType" name="stat_type" required>
+                    <option value="" selected disabled>Выберите тип статистики</option>
+                    <option value="operators">Статистика операторов</option>
+                    <option value="users">Статистика пользователей</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label for="startDate" class="form-label">Начальная дата</label>
+                <input type="date" class="form-control" id="startDate" name="start_date" required>
+            </div>
+            <div class="col-md-3">
+                <label for="endDate" class="form-label">Конечная дата</label>
+                <input type="date" class="form-control" id="endDate" name="end_date" required>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-sm btn-primary">Сформировать статистику</button>
+    </form>
+
+    {% if error_message %}
+    <div class="alert alert-danger mt-4" role="alert">
+        {{ error_message }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
